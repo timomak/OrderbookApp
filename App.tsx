@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 /**
  * Sample React Native App
  * https://github.com/facebook/react-native
@@ -5,114 +6,94 @@
  * @format
  */
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
   View,
 } from 'react-native';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+import Orderbook from './src/components/Orderbook';
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+import { Centrifuge } from 'centrifuge';
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+
+function App(): React.JSX.Element {
+  const [orderbook, setOrderbook] = useState({ asks: [], bids: [] });
+
+  function mergeUpdates(current, updates) {
+    const updateMap = new Map(updates.map(item => [item[0], item[1]]));
+    const resultMap = new Map(current.map(item => [item[0], item[1]]));
+
+    updateMap.forEach((size, price) => {
+      if (size === '0') {
+        resultMap.delete(price); // Remove levels where size is zero
+      } else {
+        resultMap.set(price, size); // Update existing or add new level
+      }
+    });
+
+    return Array.from(resultMap).sort((a, b) => parseFloat(a[0]) - parseFloat(b[0])); // Sort by price after merging
+  }
+
+
+  useEffect(() => {
+    // Prod
+    // const centrifuge = new Centrifuge('wss://api.prod.rabbitx.io/ws');
+    // centrifuge.setToken('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MDAwMDAwMDAwIiwiZXhwIjo2NTQ4NDg3NTY5fQ.o_qBZltZdDHBH3zHPQkcRhVBQCtejIuyq8V1yj5kYq8');
+
+    const centrifuge = new Centrifuge('wss://api.testnet.rabbitx.io/ws');
+    centrifuge.setToken('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwIiwiZXhwIjo1MjYyNjUyMDEwfQ.x_245iYDEvTTbraw1gt4jmFRFfgMJb-GJ-hsU9HuDik');
+
+    centrifuge.on('connected', function (ctx) {
+      console.log('Connected:', ctx);
+
+      const sub = centrifuge.newSubscription('orderbook:BTC-USD');
+
+      sub.on('state', function (ctx) {
+        console.log('State event:', ctx);
+      });
+
+      sub.on('join', function (ctx) {
+        console.log('Join event:', ctx);
+      });
+
+      sub.on('subscribed', function (initialData) {
+        console.log('subscribed event:', initialData);
+        setOrderbook({ asks: initialData.data.asks, bids: initialData.data.bids });
+      });
+
+      sub.on('publication', function (publication) {
+        console.log('publication event:', publication.data);
+        setOrderbook(prevOrderbook => {
+          const newBids = mergeUpdates(prevOrderbook.bids, publication.data.bids);
+          const newAsks = mergeUpdates(prevOrderbook.asks, publication.data.asks);
+          return { asks: newAsks, bids: newBids };
+        });
+      });
+
+
+
+      sub.on('error', function (error) {
+        console.log('Error in subscription:', error);
+      });
+
+
+      sub.subscribe();
+
+    });
+
+    centrifuge.connect();
+
+    return () => {
+      centrifuge.disconnect();
+      console.log('Disconnected');
+    };
+  }, []);
+
   return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
+    <View style={{ flex: 1, justifyContent: 'center' }}>
+      <Orderbook bids={orderbook.bids} asks={orderbook.asks} />
     </View>
   );
 }
-
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
-
-  return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
 
 export default App;
