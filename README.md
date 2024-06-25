@@ -2,7 +2,7 @@
 
 This React Native application displays real-time updates for cryptocurrency order books. It uses WebSocket connections to fetch and display bid and ask prices dynamically.
 
-![Orderbook Application]('./app-screenshot.png')
+![Orderbook Application]('https://raw.githubusercontent.com/timomak/OrderbookApp/main/app-screenshot.png')
 
 ## Prerequisites
 
