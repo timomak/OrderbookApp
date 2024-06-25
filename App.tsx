@@ -1,39 +1,33 @@
 /* eslint-disable prettier/prettier */
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-} from 'react-native';
-
+import { SafeAreaView, StyleSheet } from 'react-native';
 import Orderbook from './src/components/Orderbook';
-
 import { Centrifuge } from 'centrifuge';
 
+interface Order {
+  price: string;
+  quantity: string;
+}
 
-function App(): React.JSX.Element {
-  const [orderbook, setOrderbook] = useState({ asks: [], bids: [] });
+interface OrderbookState {
+  asks: Order[];
+  bids: Order[];
+}
 
-  function mergeUpdates(current, updates) {
-    const updateMap = new Map(updates.map(item => [item[0], item[1]]));
-    const resultMap = new Map(current.map(item => [item[0], item[1]]));
+const App = (): React.ReactElement => {
 
-    updateMap.forEach((size, price) => {
-      if (size === '0') {
-        resultMap.delete(price); // Remove levels where size is zero
-      } else {
-        resultMap.set(price, size); // Update existing or add new level
-      }
-    });
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1, justifyContent: 'center', backgroundColor: '#212A36',
+    },
+  });
 
-    return Array.from(resultMap).sort((a, b) => parseFloat(a[0]) - parseFloat(b[0])); // Sort by price after merging
-  }
+  const [orderbook, setOrderbook] = useState<OrderbookState>({
+    asks: [],
+    bids: [],
+  });
 
+  console.log('Orderbook:', orderbook);
 
   useEffect(() => {
     // Prod
@@ -43,57 +37,73 @@ function App(): React.JSX.Element {
     const centrifuge = new Centrifuge('wss://api.testnet.rabbitx.io/ws');
     centrifuge.setToken('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwIiwiZXhwIjo1MjYyNjUyMDEwfQ.x_245iYDEvTTbraw1gt4jmFRFfgMJb-GJ-hsU9HuDik');
 
-    centrifuge.on('connected', function (ctx) {
-      console.log('Connected:', ctx);
 
+    centrifuge.on('connected', ctx => {
+      console.log('Connected:', ctx);
       const sub = centrifuge.newSubscription('orderbook:BTC-USD');
 
-      sub.on('state', function (ctx) {
-        console.log('State event:', ctx);
-      });
-
-      sub.on('join', function (ctx) {
-        console.log('Join event:', ctx);
-      });
-
-      sub.on('subscribed', function (initialData) {
+      sub.on('subscribed', initialData => {
         console.log('subscribed event:', initialData);
-        setOrderbook({ asks: initialData.data.asks, bids: initialData.data.bids });
-      });
-
-      sub.on('publication', function (publication) {
-        console.log('publication event:', publication.data);
-        setOrderbook(prevOrderbook => {
-          const newBids = mergeUpdates(prevOrderbook.bids, publication.data.bids);
-          const newAsks = mergeUpdates(prevOrderbook.asks, publication.data.asks);
-          return { asks: newAsks, bids: newBids };
+        setOrderbook({
+          asks: initialData.data.asks.map(([price, quantity]) => ({
+            price,
+            quantity,
+          })),
+          bids: initialData.data.bids.map(([price, quantity]) => ({
+            price,
+            quantity,
+          })),
         });
       });
 
-
-
-      sub.on('error', function (error) {
-        console.log('Error in subscription:', error);
+      sub.on('publication', publication => {
+        console.log('publication event:', publication.data);
+        setOrderbook(prevOrderbook => {
+          return {
+            asks: mergeUpdates(prevOrderbook.asks, publication.data.asks),
+            bids: mergeUpdates(prevOrderbook.bids, publication.data.bids),
+          };
+        });
       });
 
-
       sub.subscribe();
-
     });
 
     centrifuge.connect();
 
     return () => {
       centrifuge.disconnect();
-      console.log('Disconnected');
     };
   }, []);
 
+  function mergeUpdates(
+    current: Order[],
+    updates: [string, string][],
+  ): Order[] {
+    const updateMap = new Map(
+      updates.map(([price, quantity]) => [price, quantity]),
+    );
+    const resultMap = new Map(current.map(item => [item.price, item.quantity]));
+
+    updateMap.forEach((quantity, price) => {
+      if (quantity === '0') {
+        resultMap.delete(price);
+      } else {
+        resultMap.set(price, quantity);
+      }
+    });
+
+    return Array.from(resultMap, ([price, quantity]) => ({
+      price,
+      quantity,
+    })).sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+  }
+
   return (
-    <View style={{ flex: 1, justifyContent: 'center' }}>
+    <SafeAreaView style={styles.container}>
       <Orderbook bids={orderbook.bids} asks={orderbook.asks} />
-    </View>
+    </SafeAreaView>
   );
-}
+};
 
 export default App;
