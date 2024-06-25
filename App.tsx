@@ -20,21 +20,26 @@ const App = (): React.ReactElement => {
   console.log('Orderbook:', orderbook);
 
   useEffect(() => {
+    // Would usually use a .env for secrets but it wasn't required.
+
     // Production
     // const centrifuge = new Centrifuge('wss://api.prod.rabbitx.io/ws');
     // centrifuge.setToken('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MDAwMDAwMDAwIiwiZXhwIjo2NTQ4NDg3NTY5fQ.o_qBZltZdDHBH3zHPQkcRhVBQCtejIuyq8V1yj5kYq8');
 
     // Development
-    const centrifuge = new Centrifuge('wss://api.testnet.rabbitx.io/ws');
+    const centrifuge = new Centrifuge('wss://api.testnet.rabbitx.io/ws', {
+      // Automatically reconnect with exponential backoff and jitter
+      minReconnectDelay: 1000,  // Minimum retry delay in milliseconds
+      maxReconnectDelay: 5000,  // Maximum retry delay in milliseconds
+    });
     centrifuge.setToken('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwIiwiZXhwIjo1MjYyNjUyMDEwfQ.x_245iYDEvTTbraw1gt4jmFRFfgMJb-GJ-hsU9HuDik');
 
 
     centrifuge.on('connected', ctx => {
-      console.log('Connected:', ctx);
       const sub = centrifuge.newSubscription('orderbook:BTC-USD');
 
+      // Get initial data
       sub.on('subscribed', initialData => {
-        console.log('subscribed event:', initialData);
         setOrderbook({
           asks: initialData.data.asks.map(([price, quantity]) => ({
             price,
@@ -47,8 +52,8 @@ const App = (): React.ReactElement => {
         });
       });
 
+      // Update initial Data
       sub.on('publication', publication => {
-        console.log('publication event:', publication.data);
         setOrderbook(prevOrderbook => {
           return {
             asks: mergeUpdates(prevOrderbook.asks, publication.data.asks),
@@ -67,6 +72,7 @@ const App = (): React.ReactElement => {
     };
   }, []);
 
+  // Carefully update initial data with new published changes on the subscribed channel.
   function mergeUpdates(
     current: Order[],
     updates: [string, string][],
@@ -92,6 +98,7 @@ const App = (): React.ReactElement => {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Separated the UI from the Logic */}
       <Orderbook bids={orderbook.bids} asks={orderbook.asks} />
     </SafeAreaView>
   );

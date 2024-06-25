@@ -7,16 +7,19 @@ export interface Order {
     quantity: string;
 }
 
+// Created a consistent interface for the data.
 export interface OrderbookProps {
     bids: Order[];
     asks: Order[];
 }
 
+// The view can have 3 states.
 type ViewState = 'all' | 'bids' | 'asks'
 
 const Orderbook: React.FC<OrderbookProps> = ({ bids, asks }) => {
     const [viewState, setViewState] = useState<ViewState>('all');
 
+    // Custom styling.
     const styles = StyleSheet.create({
         container: {
             justifyContent: 'flex-start',
@@ -63,13 +66,13 @@ const Orderbook: React.FC<OrderbookProps> = ({ bids, asks }) => {
         },
     });
 
-    // Create our number formatter.
+    // Create a number formatter for string to USD.
     const formatter = new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
     });
 
-
+    // Modular function to render all the items.
     const renderItems = (items: Order[], asks?: boolean) => {
         const allItems = viewState === 'all' ? items.slice(0, 8) : items;
 
@@ -101,6 +104,7 @@ const Orderbook: React.FC<OrderbookProps> = ({ bids, asks }) => {
         );
     };
 
+    // Modular Subheader component for avoiding duplicate code.
     const renderHeader = () => {
         return (
             <View style={styles.row}>
@@ -112,7 +116,7 @@ const Orderbook: React.FC<OrderbookProps> = ({ bids, asks }) => {
 
     return (
         <View style={styles.container}>
-
+            {/* Asks component */}
             {viewState === 'all' || viewState === 'asks' ? (
                 <>
                     <Text style={styles.header}>Asks</Text>
@@ -123,6 +127,7 @@ const Orderbook: React.FC<OrderbookProps> = ({ bids, asks }) => {
                 </>
             ) : null}
 
+            {/* Bids component */}
             {viewState === 'all' || viewState === 'bids' ? (
                 <>
                     <Text style={styles.header}>Bids</Text>
