@@ -1,21 +1,25 @@
 /* eslint-disable prettier/prettier */
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 
-interface Order {
+export interface Order {
     price: string;
     quantity: string;
 }
 
-interface OrderbookProps {
+export interface OrderbookProps {
     bids: Order[];
     asks: Order[];
 }
 
+type ViewState = 'all' | 'bids' | 'asks'
+
 const Orderbook: React.FC<OrderbookProps> = ({ bids, asks }) => {
+    const [viewState, setViewState] = useState<ViewState>('all');
+
     const styles = StyleSheet.create({
         container: {
-            justifyContent: 'space-between',
+            justifyContent: 'flex-start',
             padding: 10,
             flex: 1, // Ensure container takes up all available space
         },
@@ -46,17 +50,53 @@ const Orderbook: React.FC<OrderbookProps> = ({ bids, asks }) => {
             color: '#f44336', // Reddish shade
             fontWeight: 600,
         },
+        button: {
+            fontSize: 14,
+            fontWeight: '800',
+            textAlign: 'center',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#8C8A9A',
+            paddingTop: 6,
+            borderRadius: 20,
+
+        },
     });
 
+    // Create our number formatter.
+    const formatter = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+    });
+
+
     const renderItems = (items: Order[], asks?: boolean) => {
+        const allItems = viewState === 'all' ? items.slice(0, 8) : items;
+
+        const onViewMore = () => {
+            if (viewState !== 'all') {
+                setViewState('all');
+            }
+            else if (asks) {
+                setViewState('asks');
+            } else {
+                setViewState('bids');
+            }
+        };
+
+        if (allItems.length === 0) {
+            return (<Text style={styles.button}>Loading...</Text>);
+        }
+
         return (
             <>
-                {items.map((bid, index) => (
+                {allItems.map((bid, index) => (
                     <View key={index} style={styles.row}>
-                        <Text style={[styles.order, asks ? styles.asks : styles.bids]}>{`$${bid.price}`}</Text>
+                        <Text style={[styles.order, asks ? styles.asks : styles.bids]}>{`${formatter.format(Number(bid.price))}`}</Text>
                         <Text style={styles.order}>{`${bid.quantity} BTC`}</Text>
                     </View>
                 ))}
+                <Text onPress={onViewMore} style={styles.button}>{viewState === 'all' ? 'View more' : 'View less'}</Text>
             </>
         );
     };
@@ -73,18 +113,26 @@ const Orderbook: React.FC<OrderbookProps> = ({ bids, asks }) => {
     return (
         <View style={styles.container}>
 
-            <Text style={styles.header}>Asks</Text>
-            {renderHeader()}
-            <ScrollView style={styles.asks} contentContainerStyle={{ alignItems: 'stretch' }}>
-                {renderItems(asks, true)}
-            </ScrollView>
+            {viewState === 'all' || viewState === 'asks' ? (
+                <>
+                    <Text style={styles.header}>Asks</Text>
+                    {renderHeader()}
+                    <ScrollView style={styles.asks} contentContainerStyle={{ alignItems: 'stretch' }}>
+                        {renderItems(asks, true)}
+                    </ScrollView>
+                </>
+            ) : null}
 
+            {viewState === 'all' || viewState === 'bids' ? (
+                <>
+                    <Text style={styles.header}>Bids</Text>
+                    {renderHeader()}
+                    <ScrollView style={styles.bids} contentContainerStyle={{ alignItems: 'stretch' }}>
+                        {renderItems(bids)}
+                    </ScrollView>
 
-            <Text style={styles.header}>Bids</Text>
-            {renderHeader()}
-            <ScrollView style={styles.bids} contentContainerStyle={{ alignItems: 'stretch' }}>
-                {renderItems(bids)}
-            </ScrollView>
+                </>
+            ) : null}
         </View>
     );
 };

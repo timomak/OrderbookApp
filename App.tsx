@@ -1,28 +1,18 @@
 /* eslint-disable prettier/prettier */
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView, StyleSheet } from 'react-native';
-import Orderbook from './src/components/Orderbook';
+import Orderbook, { Order, OrderbookProps } from './src/components/Orderbook';
 import { Centrifuge } from 'centrifuge';
 
-interface Order {
-  price: string;
-  quantity: string;
-}
-
-interface OrderbookState {
-  asks: Order[];
-  bids: Order[];
-}
-
 const App = (): React.ReactElement => {
-
   const styles = StyleSheet.create({
     container: {
       flex: 1, justifyContent: 'center', backgroundColor: '#212A36',
     },
   });
 
-  const [orderbook, setOrderbook] = useState<OrderbookState>({
+  // Empty state values
+  const [orderbook, setOrderbook] = useState<OrderbookProps>({
     asks: [],
     bids: [],
   });
@@ -30,10 +20,11 @@ const App = (): React.ReactElement => {
   console.log('Orderbook:', orderbook);
 
   useEffect(() => {
-    // Prod
+    // Production
     // const centrifuge = new Centrifuge('wss://api.prod.rabbitx.io/ws');
     // centrifuge.setToken('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MDAwMDAwMDAwIiwiZXhwIjo2NTQ4NDg3NTY5fQ.o_qBZltZdDHBH3zHPQkcRhVBQCtejIuyq8V1yj5kYq8');
 
+    // Development
     const centrifuge = new Centrifuge('wss://api.testnet.rabbitx.io/ws');
     centrifuge.setToken('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwIiwiZXhwIjo1MjYyNjUyMDEwfQ.x_245iYDEvTTbraw1gt4jmFRFfgMJb-GJ-hsU9HuDik');
 
